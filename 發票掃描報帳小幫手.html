@@ -10127,9 +10127,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
   }
   /* Minecraft 工地風背景：固定在畫面後面，捲動時不會跟著跑，天空是平面藍、地面是方塊土磚紋理 */
   .scene { position: fixed; inset: 0; z-index: -2; pointer-events: none; }
-  .sky { position: absolute; top: 0; left: 0; right: 0; height: 62%; background: #7ec8f2; }
+  .sky { position: absolute; top: 0; left: 0; right: 0; height: 90%; background: #7ec8f2; }
   .ground {
-    position: absolute; left: 0; right: 0; bottom: 0; top: 62%;
+    position: absolute; left: 0; right: 0; bottom: 0; top: 90%;
     background-color: #9c7a4a;
     background-image:
       linear-gradient(45deg, #8a6642 25%, transparent 25%),
@@ -10182,7 +10182,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
   td.amount { font-weight:bold; text-align:right; }
   .coin { vertical-align: -3px; margin: 0 2px; }
   /* 站在地面草地邊界正上方，不要卡在螢幕最底部 */
-  .treeline { position: fixed; left:0; right:0; top: calc(62% - 30px); height:30px; display:flex; align-items:flex-end;
+  .treeline { position: fixed; left:0; right:0; top: calc(90% - 30px); height:30px; display:flex; align-items:flex-end;
     justify-content:space-around; overflow:hidden; pointer-events:none; z-index:-1; opacity:.95; }
   .deco { flex-shrink:0; }
 </style>
@@ -10317,6 +10317,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
   </div>
   <canvas id="hidden" style="display:none;"></canvas>
   <button id="startBtn">開始掃描</button>
+  <button id="stopBtn" disabled>結束掃描</button>
   <button id="exportBtn" disabled>匯出 CSV</button>
   <div><span id="total" class="score"><svg class="coin" width="16" height="16"><use href="#coinIcon"></use></svg> 已收集報帳金額：NT$ 0</span></div>
 </div>
@@ -10339,7 +10340,9 @@ const hidden = document.getElementById('hidden');
 const statusEl = document.getElementById('status');
 const rawEl = document.getElementById('raw');
 const startBtn = document.getElementById('startBtn');
+const stopBtn = document.getElementById('stopBtn');
 const exportBtn = document.getElementById('exportBtn');
+let currentStream = null; // 存起來，結束掃描時才關得掉相機
 const tbody = document.querySelector('#resultTable tbody');
 const totalEl = document.getElementById('total');
 
@@ -10402,10 +10405,10 @@ function exportCSV() {
 async function startScan() {
   try {
     // ponytail: 明確要求較高解析度，預設解析度太低會讓QR在畫面裡的像素密度不夠、掃不到
-    const stream = await navigator.mediaDevices.getUserMedia({
+    currentStream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
     });
-    video.srcObject = stream;
+    video.srcObject = currentStream;
     await video.play();
   } catch (e) {
     statusEl.textContent = '無法開啟相機：' + e.message;
@@ -10413,8 +10416,21 @@ async function startScan() {
   }
   scanning = true;
   startBtn.disabled = true;
+  stopBtn.disabled = false;
   statusEl.textContent = '掃描中…把發票 QR Code 對準鏡頭';
   requestAnimationFrame(tick);
+}
+
+function stopScan() {
+  scanning = false; // tick() 迴圈看到這個就不會再排程下一輪
+  if (currentStream) {
+    currentStream.getTracks().forEach(t => t.stop()); // 真正把相機關掉，不然手機的相機指示燈會一直亮著
+    currentStream = null;
+  }
+  video.srcObject = null;
+  startBtn.disabled = false;
+  stopBtn.disabled = true;
+  statusEl.textContent = '已結束掃描。按「開始掃描」可以再繼續。';
 }
 
 function tick() {
@@ -10452,6 +10468,7 @@ if (typeof jsQR === 'undefined') {
 }
 
 startBtn.addEventListener('click', startScan);
+stopBtn.addEventListener('click', stopScan);
 exportBtn.addEventListener('click', exportCSV);
 </script>
 
