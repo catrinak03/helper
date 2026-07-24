@@ -102,7 +102,10 @@ function exportCSV() {
 
 async function startScan() {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    // ponytail: 明確要求較高解析度，預設解析度太低會讓QR在畫面裡的像素密度不夠、掃不到
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
+    });
     video.srcObject = stream;
     await video.play();
   } catch (e) {
@@ -117,23 +120,29 @@ async function startScan() {
 
 function tick() {
   if (!scanning) return;
-  if (video.readyState === video.HAVE_ENOUGH_DATA) {
-    hidden.width = video.videoWidth;
-    hidden.height = video.videoHeight;
-    const ctx = hidden.getContext('2d');
-    ctx.drawImage(video, 0, 0, hidden.width, hidden.height);
-    const imageData = ctx.getImageData(0, 0, hidden.width, hidden.height);
-    const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
-    if (code) {
-      rawEl.textContent = '掃到的原始內容：' + code.data; // ponytail: debug 用，先看實際掃到什麼再決定要不要修解析規則
-      const data = parseInvoiceQR(code.data);
-      if (data) {
-        const added = addRow(data);
-        statusEl.textContent = added ? `已新增：${data.invoiceNo}` : `重複：${data.invoiceNo}（已略過）`;
-      } else {
-        statusEl.textContent = '有掃到 QR code，但格式不符合發票規則（見下方原始內容）';
+  try {
+    // 影片剛開始或轉方向時 videoWidth 可能短暫是 0，用 getImageData(0,0,0,0) 會丟例外、
+    // 沒接住的話 requestAnimationFrame 迴圈就整個停掉，之後永遠不會再掃 —— 這是之前完全沒反應的主因
+    if (video.readyState === video.HAVE_ENOUGH_DATA && video.videoWidth > 0 && video.videoHeight > 0) {
+      hidden.width = video.videoWidth;
+      hidden.height = video.videoHeight;
+      const ctx = hidden.getContext('2d');
+      ctx.drawImage(video, 0, 0, hidden.width, hidden.height);
+      const imageData = ctx.getImageData(0, 0, hidden.width, hidden.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
+      if (code) {
+        rawEl.textContent = '掃到的原始內容：' + code.data; // ponytail: debug 用，先看實際掃到什麼再決定要不要修解析規則
+        const data = parseInvoiceQR(code.data);
+        if (data) {
+          const added = addRow(data);
+          statusEl.textContent = added ? `已新增：${data.invoiceNo}` : `重複：${data.invoiceNo}（已略過）`;
+        } else {
+          statusEl.textContent = '有掃到 QR code，但格式不符合發票規則（見下方原始內容）';
+        }
       }
     }
+  } catch (e) {
+    rawEl.textContent = '掃描時發生錯誤：' + e.message; // 有錯誤也要看得到，不要靜靜地把迴圈弄死
   }
   requestAnimationFrame(tick);
 }
