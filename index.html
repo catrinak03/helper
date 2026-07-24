@@ -23,6 +23,7 @@
 
 <h1>發票掃描報帳小幫手</h1>
 <p id="status">按「開始掃描」，把發票上的 QR Code 對準鏡頭。</p>
+<p id="raw" style="font-size:12px; color:#888; word-break:break-all;"></p>
 
 <div id="wrap">
   <video id="video" playsinline muted></video>
@@ -48,6 +49,7 @@ const video = document.getElementById('video');
 const overlay = document.getElementById('overlay');
 const hidden = document.getElementById('hidden');
 const statusEl = document.getElementById('status');
+const rawEl = document.getElementById('raw');
 const startBtn = document.getElementById('startBtn');
 const exportBtn = document.getElementById('exportBtn');
 const tbody = document.querySelector('#resultTable tbody');
@@ -121,12 +123,15 @@ function tick() {
     const ctx = hidden.getContext('2d');
     ctx.drawImage(video, 0, 0, hidden.width, hidden.height);
     const imageData = ctx.getImageData(0, 0, hidden.width, hidden.height);
-    const code = jsQR(imageData.data, imageData.width, imageData.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
     if (code) {
+      rawEl.textContent = '掃到的原始內容：' + code.data; // ponytail: debug 用，先看實際掃到什麼再決定要不要修解析規則
       const data = parseInvoiceQR(code.data);
       if (data) {
         const added = addRow(data);
         statusEl.textContent = added ? `已新增：${data.invoiceNo}` : `重複：${data.invoiceNo}（已略過）`;
+      } else {
+        statusEl.textContent = '有掃到 QR code，但格式不符合發票規則（見下方原始內容）';
       }
     }
   }
