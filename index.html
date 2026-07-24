@@ -10109,37 +10109,221 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 });
 </script>
 <style>
-  body { font-family: -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif; max-width: 480px; margin: 0 auto; padding: 16px; background:#f7f7f8; }
-  h1 { font-size: 18px; }
-  #wrap { position: relative; }
-  video, canvas#overlay { width: 100%; border-radius: 8px; }
+  :root {
+    --ink:#2b2b2b;
+    --grass:#bfe3b4;
+    --grass2:#b3d9a8;
+    --panel:#f6ecd4;
+    --accent:#5b9bd5;
+    --accent-dark:#3d7ab5;
+    --gold:#e0a92f;
+    --gold-dark:#a97c1c;
+  }
+  body {
+    font-family: "Trebuchet MS", -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif;
+    max-width: 480px; margin: 0 auto; padding: 16px 16px 56px; color: var(--ink);
+    min-height: 100vh;
+    position: relative;
+  }
+  /* Minecraft 工地風背景：固定在畫面後面，捲動時不會跟著跑，天空是平面藍、地面是方塊土磚紋理 */
+  .scene { position: fixed; inset: 0; z-index: -2; pointer-events: none; }
+  .sky { position: absolute; top: 0; left: 0; right: 0; height: 62%; background: #7ec8f2; }
+  .ground {
+    position: absolute; left: 0; right: 0; bottom: 0; top: 62%;
+    background-color: #9c7a4a;
+    background-image:
+      linear-gradient(45deg, #8a6642 25%, transparent 25%),
+      linear-gradient(-45deg, #8a6642 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #8a6642 75%),
+      linear-gradient(-45deg, transparent 75%, #8a6642 75%);
+    background-size: 28px 28px;
+    background-position: 0 0, 0 14px, 14px -14px, -14px 0;
+    border-top: 8px solid #6fa83f;
+  }
+  /* 天際線剪影，跟參考圖一樣在藍天下方擺一排大樓方塊 */
+  .skyline { position: absolute; left:0; right:0; bottom:0; height:70px; display:flex; align-items:flex-end; justify-content:space-between; opacity:.55; }
+  .skyline div { width: 9%; background:#6f93b8; }
+  .skyline div:nth-child(1) { height:55%; } .skyline div:nth-child(2) { height:80%; }
+  .skyline div:nth-child(3) { height:40%; } .skyline div:nth-child(4) { height:95%; }
+  .skyline div:nth-child(5) { height:60%; } .skyline div:nth-child(6) { height:75%; }
+  .skyline div:nth-child(7) { height:45%; } .skyline div:nth-child(8) { height:85%; }
+  .skyline div:nth-child(9) { height:65%; }
+  /* 綠色鷹架管柱 + 紅色警示燈，照參考圖的工地圍柱 */
+  .pole { position: fixed; top:0; bottom:0; width:16px; z-index:-1;
+    background: repeating-linear-gradient(to bottom, #3f8f3f 0 10px, #5aa85a 10px 20px);
+    border-left:2px solid #2c6b2c; border-right:2px solid #2c6b2c; }
+  .pole::before { content:''; position:absolute; top:-4px; left:-3px; width:22px; height:12px; background:#c62828; border-radius:50%; }
+  /* 黑黃警示斜紋帶 */
+  .hazard { position: fixed; left:0; right:0; top:50%; height:14px; z-index:-1; opacity:.9;
+    background: repeating-linear-gradient(45deg, #f4c430 0 14px, #222 14px 28px);
+    border-top:2px solid #000; border-bottom:2px solid #000; }
+  /* 背景零星散落的金幣，跟其他場景裝飾一樣固定不隨捲動移動 */
+  .bgcoin { position: fixed; z-index:-1; pointer-events:none; opacity:.9; }
+  .panel { background: var(--panel); border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); border-radius: 6px; padding: 14px; margin-bottom: 14px; }
+  .titlebar { display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px; }
+  .titlebar h1 { font-size:17px; margin:6px 0 0; }
+  .logo-lockup svg { display:block; }
+  #status { margin: 6px 0; font-size: 13px; color: #4a4636; min-height: 18px; font-weight:bold; }
+  #raw { font-size:11px; color:#8a8370; word-break:break-all; }
+  .score { display:inline-block; background: var(--ink); color: var(--gold); font-weight:bold; padding: 6px 12px; border-radius: 20px; border: 2px solid var(--gold-dark); font-size:14px; margin-top:8px; }
+  #wrap { position: relative; border:3px solid var(--ink); border-radius:6px; overflow:hidden; box-shadow:6px 6px 0 var(--ink); }
+  video, canvas#overlay { width: 100%; display:block; }
   canvas#overlay { position: absolute; top: 0; left: 0; pointer-events: none; }
-  #status { margin: 8px 0; font-size: 14px; color: #555; min-height: 20px; }
-  table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; background: #fff; }
-  th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
-  th { background: #eee; }
-  button { padding: 8px 14px; margin: 4px 4px 4px 0; border: none; border-radius: 6px; background: #333; color: #fff; font-size: 14px; }
-  button:disabled { background: #aaa; }
+  button { padding: 10px 16px; margin: 10px 8px 4px 0; border: 3px solid var(--ink); border-radius: 6px; background: var(--accent); color: #fff; font-size: 14px; font-weight:bold; text-transform:uppercase; letter-spacing: .5px; box-shadow: 4px 4px 0 var(--ink); cursor:pointer; }
+  button:active { transform: translate(3px,3px); box-shadow: 1px 1px 0 var(--ink); }
+  button:disabled { background: #b7b3a4; color:#726f63; box-shadow:4px 4px 0 #726f63; cursor:default; }
+  #exportBtn { background: var(--gold); }
+  table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 13px; background: #fffdf6; border:3px solid var(--ink); border-radius:6px; overflow:hidden; }
+  th, td { border: 1px solid #d8cfa8; padding: 8px 6px; text-align: left; }
+  th { background: var(--ink); color: var(--gold); font-size:12px; }
+  tr:nth-child(even) td { background: #f7f0da; }
+  td input[type=text] { width:100%; border:none; background:transparent; font: inherit; padding:2px; }
+  td input[type=text]:focus { outline: 2px dashed var(--accent-dark); background:#fff; }
+  td.amount { font-weight:bold; text-align:right; }
+  .coin { vertical-align: -3px; margin: 0 2px; }
+  /* 站在地面草地邊界正上方，不要卡在螢幕最底部 */
+  .treeline { position: fixed; left:0; right:0; top: calc(62% - 30px); height:30px; display:flex; align-items:flex-end;
+    justify-content:space-around; overflow:hidden; pointer-events:none; z-index:-1; opacity:.95; }
+  .deco { flex-shrink:0; }
 </style>
 </head>
 <body>
 
-<h1>發票掃描報帳小幫手</h1>
-<p id="status">按「開始掃描」，把發票上的 QR Code 對準鏡頭。</p>
-<p id="raw" style="font-size:12px; color:#888; word-break:break-all;"></p>
-
-<div id="wrap">
-  <video id="video" playsinline muted></video>
-  <canvas id="overlay"></canvas>
+<div class="scene">
+  <div class="sky">
+    <div class="skyline">
+      <div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+    </div>
+  </div>
+  <div class="ground"></div>
 </div>
-<canvas id="hidden" style="display:none;"></canvas>
+<div class="pole" style="left:6%"></div>
+<div class="pole" style="left:28%"></div>
+<div class="pole" style="left:50%"></div>
+<div class="pole" style="left:72%"></div>
+<div class="pole" style="left:92%"></div>
+<div class="hazard"></div>
+<svg class="bgcoin" width="22" height="22" style="top:10%; left:18%;"><use href="#coinIcon"></use></svg>
+<svg class="bgcoin" width="16" height="16" style="top:22%; left:82%;"><use href="#coinIcon"></use></svg>
+<svg class="bgcoin" width="18" height="18" style="top:58%; left:62%;"><use href="#coinIcon"></use></svg>
+<svg class="bgcoin" width="14" height="14" style="top:75%; left:12%;"><use href="#coinIcon"></use></svg>
+<svg class="bgcoin" width="15" height="15" style="top:88%; left:45%;"><use href="#coinIcon"></use></svg>
 
-<button id="startBtn">開始掃描</button>
-<button id="exportBtn" disabled>匯出 CSV</button>
+<!-- 圖示定義區：金幣照參考圖畫的圓餅樣式；樹/吊車/卡車全用方塊拼成 Minecraft 風格，不用 emoji -->
+<svg style="display:none">
+  <symbol id="coinIcon" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="30" fill="#a9720c"/>
+    <circle cx="32" cy="32" r="25" fill="#f5c518"/>
+    <circle cx="32" cy="32" r="19" fill="none" stroke="#c98f12" stroke-width="2"/>
+    <text x="32" y="41" text-anchor="middle" font-family="Arial, sans-serif" font-weight="bold" font-size="26" fill="#a9720c">$</text>
+  </symbol>
+  <symbol id="treeIcon" viewBox="0 0 100 100" shape-rendering="crispEdges">
+    <rect x="10" y="10" width="80" height="20" fill="#4f7a2f"/>
+    <rect x="0" y="30" width="100" height="30" fill="#5c8f37"/>
+    <rect x="40" y="60" width="20" height="40" fill="#6b4423"/>
+  </symbol>
+  <symbol id="craneIcon" viewBox="0 0 100 100" shape-rendering="crispEdges">
+    <rect x="10" y="8" width="80" height="8" fill="#e8b923"/>
+    <rect x="10" y="8" width="12" height="80" fill="#e8b923"/>
+    <rect x="10" y="30" width="12" height="4" fill="#333"/>
+    <rect x="10" y="55" width="12" height="4" fill="#333"/>
+    <rect x="78" y="16" width="14" height="10" fill="#555"/>
+    <rect x="70" y="16" width="2" height="20" fill="#333"/>
+    <rect x="66" y="36" width="10" height="6" fill="#333"/>
+    <rect x="0" y="88" width="34" height="10" fill="#555"/>
+  </symbol>
+  <symbol id="truckIcon" viewBox="0 0 100 100" shape-rendering="crispEdges">
+    <rect x="35" y="25" width="55" height="6" fill="#8b939b"/>
+    <rect x="35" y="31" width="55" height="34" fill="#b7bfc6"/>
+    <rect x="5" y="40" width="32" height="25" fill="#3d6ea5"/>
+    <rect x="10" y="45" width="12" height="10" fill="#cfe8f7"/>
+    <rect x="0" y="65" width="90" height="6" fill="#333"/>
+    <rect x="12" y="68" width="16" height="16" fill="#222"/>
+    <rect x="17" y="73" width="6" height="6" fill="#777"/>
+    <rect x="62" y="68" width="16" height="16" fill="#222"/>
+    <rect x="67" y="73" width="6" height="6" fill="#777"/>
+  </symbol>
+</svg>
+<div class="treeline">
+  <svg class="deco" width="28" height="28"><use href="#treeIcon"></use></svg>
+  <svg class="deco" width="28" height="28"><use href="#craneIcon"></use></svg>
+  <svg class="deco" width="28" height="28"><use href="#truckIcon"></use></svg>
+  <svg class="deco" width="28" height="28"><use href="#treeIcon"></use></svg>
+  <svg class="deco" width="28" height="28"><use href="#treeIcon"></use></svg>
+  <svg class="deco" width="28" height="28"><use href="#truckIcon"></use></svg>
+  <svg class="deco" width="28" height="28"><use href="#craneIcon"></use></svg>
+  <svg class="deco" width="28" height="28"><use href="#treeIcon"></use></svg>
+  <svg class="deco" width="28" height="28"><use href="#truckIcon"></use></svg>
+  <svg class="deco" width="28" height="28"><use href="#treeIcon"></use></svg>
+  <svg class="deco" width="28" height="28"><use href="#craneIcon"></use></svg>
+  <svg class="deco" width="28" height="28"><use href="#treeIcon"></use></svg>
+</div>
+
+<div class="panel titlebar">
+  <div class="logo-lockup">
+    <!-- ponytail: 手繪重建的近似版 logo（你貼的是聊天室內嵌圖片，抓不到原始檔案位元組，
+         所以沒辦法直接內嵌原圖，只能照樣子重畫一個 SVG 版本）。要換成真正的原圖，
+         麻煩用「附加檔案」把 logo 檔案傳一次，我就能換成一模一樣的原圖。 -->
+    <svg width="140" height="150" viewBox="0 0 200 165" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">
+      <g transform="translate(20,5)">
+        <!-- 像素風六角外框（一格一格拼出來，不用漸層曲線） -->
+        <rect x="60" y="0" width="40" height="10" fill="#4a5568"/>
+        <rect x="50" y="10" width="60" height="10" fill="#4a5568"/>
+        <rect x="40" y="20" width="80" height="10" fill="#4a5568"/>
+        <rect x="30" y="30" width="40" height="10" fill="#4a5568"/>
+        <rect x="90" y="30" width="40" height="10" fill="#4a5568"/>
+        <rect x="20" y="40" width="40" height="10" fill="#4a5568"/>
+        <rect x="100" y="40" width="40" height="10" fill="#4a5568"/>
+        <rect x="10" y="50" width="40" height="10" fill="#4a5568"/>
+        <rect x="110" y="50" width="40" height="10" fill="#4a5568"/>
+        <rect x="0" y="60" width="40" height="10" fill="#4a5568"/>
+        <rect x="120" y="60" width="40" height="10" fill="#4a5568"/>
+        <rect x="0" y="70" width="30" height="10" fill="#4a5568"/>
+        <rect x="130" y="70" width="30" height="10" fill="#4a5568"/>
+        <rect x="0" y="80" width="30" height="10" fill="#4a5568"/>
+        <rect x="130" y="80" width="30" height="10" fill="#4a5568"/>
+        <rect x="0" y="90" width="40" height="10" fill="#4a5568"/>
+        <rect x="120" y="90" width="40" height="10" fill="#4a5568"/>
+        <rect x="10" y="100" width="40" height="10" fill="#4a5568"/>
+        <rect x="110" y="100" width="40" height="10" fill="#4a5568"/>
+        <rect x="20" y="110" width="40" height="10" fill="#4a5568"/>
+        <rect x="100" y="110" width="40" height="10" fill="#4a5568"/>
+        <rect x="30" y="120" width="40" height="10" fill="#4a5568"/>
+        <rect x="90" y="120" width="40" height="10" fill="#4a5568"/>
+        <rect x="40" y="130" width="80" height="10" fill="#4a5568"/>
+        <rect x="50" y="140" width="60" height="10" fill="#4a5568"/>
+        <rect x="60" y="150" width="40" height="10" fill="#4a5568"/>
+        <!-- 像素風圓球（上淺下深兩色分色，模擬立體感） -->
+        <rect x="60" y="40" width="40" height="10" fill="#c9d3da"/>
+        <rect x="50" y="50" width="60" height="10" fill="#c9d3da"/>
+        <rect x="40" y="60" width="80" height="10" fill="#c9d3da"/>
+        <rect x="40" y="70" width="80" height="10" fill="#c9d3da"/>
+        <rect x="40" y="80" width="80" height="10" fill="#5b6b7d"/>
+        <rect x="40" y="90" width="80" height="10" fill="#5b6b7d"/>
+        <rect x="50" y="100" width="60" height="10" fill="#5b6b7d"/>
+        <rect x="60" y="110" width="40" height="10" fill="#5b6b7d"/>
+      </g>
+    </svg>
+  </div>
+  <h1>基曜發票掃描報帳小幫手</h1>
+</div>
+
+<div class="panel">
+  <p id="status">按「開始掃描」，把發票上的 QR Code 對準鏡頭。</p>
+  <p id="raw"></p>
+  <div id="wrap">
+    <video id="video" playsinline muted></video>
+    <canvas id="overlay"></canvas>
+  </div>
+  <canvas id="hidden" style="display:none;"></canvas>
+  <button id="startBtn">開始掃描</button>
+  <button id="exportBtn" disabled>匯出 CSV</button>
+  <div><span id="total" class="score"><svg class="coin" width="16" height="16"><use href="#coinIcon"></use></svg> 已收集報帳金額：NT$ 0</span></div>
+</div>
 
 <table id="resultTable">
   <thead>
-    <tr><th>發票號碼</th><th>日期</th><th>金額</th><th>賣方統編</th></tr>
+    <tr><th>種類及摘要</th><th>發票單號/編號</th><th>金額</th><th>備註</th></tr>
   </thead>
   <tbody></tbody>
 </table>
@@ -10147,6 +10331,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 <script>
 // ponytail: 用 jsQR（純 JS，任何瀏覽器都能跑）而非原生 BarcodeDetector，
 // 因為 BarcodeDetector 在 iOS Safari 不支援，換一顆 lib 換取相容性比寫 feature-detect 分支簡單。
+// 函式庫已直接內嵌在本檔案最上方，不再依賴外部 CDN（之前掃不到的根本原因就是外部 script 載入失敗）。
 
 const video = document.getElementById('video');
 const overlay = document.getElementById('overlay');
@@ -10156,46 +10341,57 @@ const rawEl = document.getElementById('raw');
 const startBtn = document.getElementById('startBtn');
 const exportBtn = document.getElementById('exportBtn');
 const tbody = document.querySelector('#resultTable tbody');
+const totalEl = document.getElementById('total');
 
 const seen = new Set(); // 發票號碼去重，避免同一張重複掃到就重複新增
 let scanning = false;
+const coinIcon = '<svg class="coin" width="16" height="16"><use href="#coinIcon"></use></svg>'; // 金幣圖示重複用這段字串插進 innerHTML
 
-// 台灣電子發票 QR Code 固定欄位格式（財政部規範）：
-// 發票號碼(10) + 發票日期(7,民國年月日) + 隨機碼(4) + 銷售額(8,16進位) + 總計額(8,16進位) + 買方統編(8) + 賣方統編(8) + 其餘加密/明細資料
+// 台灣電子發票 QR Code 固定欄位格式（財政部規範），這裡只取畫面上會用到的兩個欄位：
+// 發票號碼(10) + 發票日期(7) + 隨機碼(4) + 銷售額(8,16進位) + 總計額(8,16進位) + 買方統編(8) + 賣方統編(8) + ...
 function parseInvoiceQR(text) {
   if (text.length < 53) return null;
   const invoiceNo = text.slice(0, 10);
-  if (!/^[A-Z]{2}\d{8}$/.test(invoiceNo)) return null; // 不是發票格式就跳過（例如掃到別的QR）
-
-  const rocDate = text.slice(10, 17);
+  if (!/^[A-Z]{2}\d{8}$/.test(invoiceNo)) return null; // 不是發票格式就跳過（例如掃到明細那顆QR）
   const totalHex = text.slice(29, 37);
-  const sellerId = text.slice(45, 53);
-
-  const year = parseInt(rocDate.slice(0, 3), 10) + 1911;
-  const month = rocDate.slice(3, 5);
-  const day = rocDate.slice(5, 7);
-  const date = `${year}-${month}-${day}`;
   const total = parseInt(totalHex, 16);
-
-  return { invoiceNo, date, total: isNaN(total) ? '' : total, sellerId };
+  return { invoiceNo, total: isNaN(total) ? '' : total };
 }
 
 function addRow(data) {
   if (seen.has(data.invoiceNo)) return false;
   seen.add(data.invoiceNo);
   const tr = document.createElement('tr');
-  tr.innerHTML = `<td>${data.invoiceNo}</td><td>${data.date}</td><td>${data.total}</td><td>${data.sellerId}</td>`;
+  tr.innerHTML = `
+    <td><input type="text" placeholder="例如：交通 / 餐飲"></td>
+    <td>${data.invoiceNo}</td>
+    <td class="amount">${data.total}</td>
+    <td><input type="text" placeholder="備註"></td>
+  `;
   tbody.appendChild(tr);
   exportBtn.disabled = false;
+  updateTotal();
   return true;
 }
 
+function updateTotal() {
+  let sum = 0;
+  tbody.querySelectorAll('td.amount').forEach(td => sum += Number(td.textContent) || 0);
+  totalEl.innerHTML = `${coinIcon} 已收集報帳金額：NT$ ${sum}`;
+}
+
 function exportCSV() {
-  const rows = [['發票號碼', '日期', '金額', '賣方統編']];
+  const rows = [['種類及摘要', '發票單號/編號', '金額', '備註']];
   tbody.querySelectorAll('tr').forEach(tr => {
-    rows.push(Array.from(tr.children).map(td => td.textContent));
+    const cells = tr.children;
+    rows.push([
+      cells[0].querySelector('input').value,
+      cells[1].textContent,
+      cells[2].textContent,
+      cells[3].querySelector('input').value,
+    ]);
   });
-  const csv = '﻿' + rows.map(r => r.join(',')).join('\n'); // BOM 避免Excel中文亂碼
+  const csv = '﻿' + rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n'); // BOM 避免Excel中文亂碼
   const blob = new Blob([csv], { type: 'text/csv' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -10238,7 +10434,7 @@ function tick() {
         const data = parseInvoiceQR(code.data);
         if (data) {
           const added = addRow(data);
-          statusEl.textContent = added ? `已新增：${data.invoiceNo}` : `重複：${data.invoiceNo}（已略過）`;
+          statusEl.innerHTML = added ? `${coinIcon} 收集到一張發票：${data.invoiceNo}！` : `這張已經收集過了：${data.invoiceNo}`;
         } else {
           statusEl.textContent = '有掃到 QR code，但格式不符合發票規則（見下方原始內容）';
         }
@@ -10250,9 +10446,9 @@ function tick() {
   requestAnimationFrame(tick);
 }
 
-// 一開頁就檢查 jsQR 這顆 CDN library 到底有沒有載入成功，不要等到掃描時才默默出錯
+// 一開頁就檢查 jsQR 有沒有成功定義（理論上已內嵌，應該一定會有）
 if (typeof jsQR === 'undefined') {
-  statusEl.textContent = 'QR 函式庫載入失敗（可能是網路或瀏覽器擋了 cdnjs.cloudflare.com），無法掃描';
+  statusEl.textContent = 'QR 函式庫載入失敗，無法掃描';
 }
 
 startBtn.addEventListener('click', startScan);
