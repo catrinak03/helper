@@ -147,6 +147,11 @@ function tick() {
   requestAnimationFrame(tick);
 }
 
+// 一開頁就檢查 jsQR 這顆 CDN library 到底有沒有載入成功，不要等到掃描時才默默出錯
+if (typeof jsQR === 'undefined') {
+  statusEl.textContent = 'QR 函式庫載入失敗（可能是網路或瀏覽器擋了 cdnjs.cloudflare.com），無法掃描';
+}
+
 startBtn.addEventListener('click', startScan);
 exportBtn.addEventListener('click', exportCSV);
 </script>
