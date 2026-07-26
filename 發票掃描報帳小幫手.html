@@ -10120,11 +10120,17 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
     --gold-dark:#a97c1c;
   }
   body {
-    font-family: "Trebuchet MS", -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif;
+    /* 等寬字體優先，讀起來比較像早期電玩/終端機的點陣字，中文自動 fallback 到後面的字體 */
+    font-family: "Courier New", ui-monospace, monospace, "PingFang TC", "Microsoft JhengHei", sans-serif;
     max-width: 480px; margin: 0 auto; padding: 16px 16px 56px; color: var(--ink);
     min-height: 100vh;
     position: relative;
   }
+  /* CRT 掃描線疊層，蓋在畫面最上面但不擋點擊，做出老電視/老遊戲機的顆粒感 */
+  .crt { position: fixed; inset: 0; z-index: 5; pointer-events: none;
+    background: repeating-linear-gradient(to bottom, rgba(0,0,0,.09) 0px, rgba(0,0,0,.09) 1px, transparent 1px, transparent 3px);
+    mix-blend-mode: multiply; }
+  .score { text-shadow: 2px 2px 0 rgba(0,0,0,.5); } /* 深色底+亮色字才看得出像素字的陰影感 */
   /* Minecraft 工地風背景：固定在畫面後面，捲動時不會跟著跑，天空是平面藍、地面是方塊土磚紋理 */
   .scene { position: fixed; inset: 0; z-index: -2; pointer-events: none; }
   .sky { position: absolute; top: 0; left: 0; right: 0; height: 90%; background: #7ec8f2; }
@@ -10148,20 +10154,52 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
   .skyline div:nth-child(5) { height:60%; } .skyline div:nth-child(6) { height:75%; }
   .skyline div:nth-child(7) { height:45%; } .skyline div:nth-child(8) { height:85%; }
   .skyline div:nth-child(9) { height:65%; }
-  /* 綠色鷹架管柱 + 紅色警示燈，照參考圖的工地圍柱 */
-  .pole { position: fixed; top:0; bottom:0; width:16px; z-index:-1;
-    background: repeating-linear-gradient(to bottom, #3f8f3f 0 10px, #5aa85a 10px 20px);
-    border-left:2px solid #2c6b2c; border-right:2px solid #2c6b2c; }
-  .pole::before { content:''; position:absolute; top:-4px; left:-3px; width:22px; height:12px; background:#c62828; border-radius:50%; }
   /* 黑黃警示斜紋帶 */
   .hazard { position: fixed; left:0; right:0; top:50%; height:14px; z-index:-1; opacity:.9;
     background: repeating-linear-gradient(45deg, #f4c430 0 14px, #222 14px 28px);
     border-top:2px solid #000; border-bottom:2px solid #000; }
-  /* 背景零星散落的金幣，跟其他場景裝飾一樣固定不隨捲動移動 */
-  .bgcoin { position: fixed; z-index:-1; pointer-events:none; opacity:.9; }
+  /* 鷹架安全網，改貼在畫面左右兩側邊緣，比整根實心管柱低調 */
+  .net { position: fixed; top:0; bottom:0; width:20px; z-index:-1; opacity:.5;
+    background-color: rgba(230,120,20,.12);
+    background-image:
+      repeating-linear-gradient(45deg, rgba(230,120,20,.7) 0 2px, transparent 2px 9px),
+      repeating-linear-gradient(-45deg, rgba(230,120,20,.7) 0 2px, transparent 2px 9px); }
+  /* 背景零星散落的金幣，跟其他場景裝飾一樣固定不隨捲動移動，閃爍動畫錯開時間比較自然 */
+  .bgcoin { position: fixed; z-index:-1; pointer-events:none; animation: coinTwinkle 2.4s ease-in-out infinite; }
+  @keyframes coinTwinkle { 0%,100% { opacity:.45; transform:scale(.9); } 50% { opacity:1; transform:scale(1.15); } }
+  /* 吊車吊臂輕輕擺動：以桅桿頂端為軸心小角度來回轉動 */
+  #craneIcon .craneArm { animation: craneSway 3s ease-in-out infinite; transform-origin: 16px 12px; }
+  @keyframes craneSway { 0%,100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+  /* 卡車緩緩開過整個畫面，循環播放 */
+  /* scaleX(-1) 把車頭鏡像翻到右邊，不然車子會變成倒著開 */
+  .drivingTruck { position: fixed; bottom: calc(10% - 4px); z-index:-1; animation: truckDrive 16s linear infinite; transform: scaleX(-1); }
+  @keyframes truckDrive { 0% { left:-40px; } 100% { left:calc(100% + 40px); } }
+  /* 掃描成功的遊戲風回饋：全螢幕金色閃一下 + 中間跳出 GET! 徽章 */
+  .flash { position: fixed; inset:0; background: var(--gold); opacity:0; z-index:9; pointer-events:none; animation: flashFade .4s ease-out; }
+  @keyframes flashFade { 0% { opacity:.55; } 100% { opacity:0; } }
+  .getPopup {
+    position: fixed; left:50%; top:42%; z-index:10; pointer-events:none;
+    background: var(--ink); color: var(--gold); border:3px solid #000; box-shadow:4px 4px 0 #000;
+    font-family: "Courier New", ui-monospace, monospace; font-weight:bold; font-size:18px; letter-spacing:1px;
+    padding: 10px 18px; text-shadow:2px 2px 0 rgba(0,0,0,.6); white-space:nowrap;
+    animation: getPopup 1.1s ease-out forwards;
+  }
+  @keyframes getPopup {
+    0%   { transform: translate(-50%,-50%) scale(.3); opacity:0; }
+    15%  { transform: translate(-50%,-50%) scale(1.15); opacity:1; }
+    25%  { transform: translate(-50%,-50%) scale(1); opacity:1; }
+    75%  { transform: translate(-50%,-65%) scale(1); opacity:1; }
+    100% { transform: translate(-50%,-95%) scale(1); opacity:0; }
+  }
+  @keyframes scorePulse { 0% { transform:scale(1); } 35% { transform:scale(1.3); } 100% { transform:scale(1); } }
   .panel { background: var(--panel); border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); border-radius: 6px; padding: 14px; margin-bottom: 14px; }
   .titlebar { display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px; }
-  .titlebar h1 { font-size:17px; margin:6px 0 0; }
+  .titlebar h1 {
+    display:inline-block; font-family: "Courier New", ui-monospace, monospace, "PingFang TC", "Microsoft JhengHei", sans-serif;
+    font-size:16px; font-weight:bold; letter-spacing:1px; margin:8px 0 0;
+    background: var(--ink); color: var(--gold); padding:6px 14px;
+    border:3px solid #000; box-shadow:4px 4px 0 #000; text-shadow:2px 2px 0 rgba(0,0,0,.6);
+  }
   .logo-lockup svg { display:block; }
   #status { margin: 6px 0; font-size: 13px; color: #4a4636; min-height: 18px; font-weight:bold; }
   #raw { font-size:11px; color:#8a8370; word-break:break-all; }
@@ -10181,14 +10219,13 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
   td input[type=text]:focus { outline: 2px dashed var(--accent-dark); background:#fff; }
   td.amount { font-weight:bold; text-align:right; }
   .coin { vertical-align: -3px; margin: 0 2px; }
-  /* 站在地面草地邊界正上方，不要卡在螢幕最底部 */
-  .treeline { position: fixed; left:0; right:0; top: calc(90% - 30px); height:30px; display:flex; align-items:flex-end;
-    justify-content:space-around; overflow:hidden; pointer-events:none; z-index:-1; opacity:.95; }
-  .deco { flex-shrink:0; }
+  /* 地面上的裝飾各自用 left/bottom 手動擺位置，故意大小、間距不整齊，看起來比較像現實裡隨便長出來/放著的東西，不是排整齊的一排 */
+  .deco { position: fixed; z-index:-1; pointer-events:none; opacity:.95; }
 </style>
 </head>
 <body>
 
+<div class="crt"></div>
 <div class="scene">
   <div class="sky">
     <div class="skyline">
@@ -10197,17 +10234,18 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
   </div>
   <div class="ground"></div>
 </div>
-<div class="pole" style="left:6%"></div>
-<div class="pole" style="left:28%"></div>
-<div class="pole" style="left:50%"></div>
-<div class="pole" style="left:72%"></div>
-<div class="pole" style="left:92%"></div>
+<div class="net" style="left:0"></div>
+<div class="net" style="right:0"></div>
 <div class="hazard"></div>
-<svg class="bgcoin" width="22" height="22" style="top:10%; left:18%;"><use href="#coinIcon"></use></svg>
-<svg class="bgcoin" width="16" height="16" style="top:22%; left:82%;"><use href="#coinIcon"></use></svg>
-<svg class="bgcoin" width="18" height="18" style="top:58%; left:62%;"><use href="#coinIcon"></use></svg>
-<svg class="bgcoin" width="14" height="14" style="top:75%; left:12%;"><use href="#coinIcon"></use></svg>
-<svg class="bgcoin" width="15" height="15" style="top:88%; left:45%;"><use href="#coinIcon"></use></svg>
+<svg class="bgcoin" width="22" height="22" style="top:10%; left:18%; animation-delay:0s"><use href="#coinIcon"></use></svg>
+<svg class="bgcoin" width="16" height="16" style="top:22%; left:82%; animation-delay:.6s"><use href="#coinIcon"></use></svg>
+<svg class="bgcoin" width="18" height="18" style="top:58%; left:62%; animation-delay:1.2s"><use href="#coinIcon"></use></svg>
+<svg class="bgcoin" width="14" height="14" style="top:75%; left:12%; animation-delay:.3s"><use href="#coinIcon"></use></svg>
+<svg class="bgcoin" width="15" height="15" style="top:88%; left:45%; animation-delay:.9s"><use href="#coinIcon"></use></svg>
+<svg class="deco" width="26" height="26" style="position:fixed; top:15%; left:55%; z-index:-1;"><use href="#hardHatIcon"></use></svg>
+<svg class="deco" width="26" height="26" style="position:fixed; top:30%; left:8%; z-index:-1;"><use href="#hardHatIcon"></use></svg>
+<svg class="deco" width="32" height="32" style="position:fixed; top:18%; left:35%; z-index:-1;"><use href="#signIcon"></use></svg>
+<svg class="drivingTruck" width="30" height="30"><use href="#truckIcon"></use></svg>
 
 <!-- 圖示定義區：金幣照參考圖畫的圓餅樣式；樹/吊車/卡車全用方塊拼成 Minecraft 風格，不用 emoji -->
 <svg style="display:none">
@@ -10223,14 +10261,28 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
     <rect x="40" y="60" width="20" height="40" fill="#6b4423"/>
   </symbol>
   <symbol id="craneIcon" viewBox="0 0 100 100" shape-rendering="crispEdges">
-    <rect x="10" y="8" width="80" height="8" fill="#e8b923"/>
     <rect x="10" y="8" width="12" height="80" fill="#e8b923"/>
     <rect x="10" y="30" width="12" height="4" fill="#333"/>
     <rect x="10" y="55" width="12" height="4" fill="#333"/>
-    <rect x="78" y="16" width="14" height="10" fill="#555"/>
-    <rect x="70" y="16" width="2" height="20" fill="#333"/>
-    <rect x="66" y="36" width="10" height="6" fill="#333"/>
     <rect x="0" y="88" width="34" height="10" fill="#555"/>
+    <!-- 吊臂+配重+吊鉤放同一組，靠 CSS 繞著桅桿頂端小角度擺動 -->
+    <g class="craneArm">
+      <rect x="10" y="8" width="80" height="8" fill="#e8b923"/>
+      <rect x="78" y="16" width="14" height="10" fill="#555"/>
+      <rect x="70" y="16" width="2" height="20" fill="#333"/>
+      <rect x="66" y="36" width="10" height="6" fill="#333"/>
+    </g>
+  </symbol>
+  <symbol id="hardHatIcon" viewBox="0 0 100 100" shape-rendering="crispEdges">
+    <rect x="30" y="20" width="40" height="10" fill="#f4c430"/>
+    <rect x="20" y="30" width="60" height="25" fill="#f4c430"/>
+    <rect x="45" y="30" width="10" height="25" fill="#d9a521"/>
+    <rect x="10" y="55" width="80" height="10" fill="#d9a521"/>
+  </symbol>
+  <symbol id="signIcon" viewBox="0 0 100 100" shape-rendering="crispEdges">
+    <rect x="45" y="50" width="10" height="45" fill="#6b4423"/>
+    <rect x="8" y="12" width="84" height="42" fill="#f4c430" stroke="#111" stroke-width="4"/>
+    <text x="50" y="42" text-anchor="middle" font-family="'Courier New', monospace" font-weight="bold" font-size="20" fill="#111">施工中</text>
   </symbol>
   <symbol id="truckIcon" viewBox="0 0 100 100" shape-rendering="crispEdges">
     <rect x="35" y="25" width="55" height="6" fill="#8b939b"/>
@@ -10244,20 +10296,15 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
     <rect x="67" y="73" width="6" height="6" fill="#777"/>
   </symbol>
 </svg>
-<div class="treeline">
-  <svg class="deco" width="28" height="28"><use href="#treeIcon"></use></svg>
-  <svg class="deco" width="28" height="28"><use href="#craneIcon"></use></svg>
-  <svg class="deco" width="28" height="28"><use href="#truckIcon"></use></svg>
-  <svg class="deco" width="28" height="28"><use href="#treeIcon"></use></svg>
-  <svg class="deco" width="28" height="28"><use href="#treeIcon"></use></svg>
-  <svg class="deco" width="28" height="28"><use href="#truckIcon"></use></svg>
-  <svg class="deco" width="28" height="28"><use href="#craneIcon"></use></svg>
-  <svg class="deco" width="28" height="28"><use href="#treeIcon"></use></svg>
-  <svg class="deco" width="28" height="28"><use href="#truckIcon"></use></svg>
-  <svg class="deco" width="28" height="28"><use href="#treeIcon"></use></svg>
-  <svg class="deco" width="28" height="28"><use href="#craneIcon"></use></svg>
-  <svg class="deco" width="28" height="28"><use href="#treeIcon"></use></svg>
-</div>
+<svg class="deco" width="24" height="24" style="left:3%; bottom:10%;"><use href="#treeIcon"></use></svg>
+<svg class="deco" width="17" height="17" style="left:9%; bottom:9%;"><use href="#treeIcon"></use></svg>
+<svg class="deco" width="32" height="32" style="left:18%; bottom:10%;"><use href="#craneIcon"></use></svg>
+<svg class="deco" width="26" height="26" style="left:30%; bottom:10%;"><use href="#treeIcon"></use></svg>
+<svg class="deco" width="15" height="15" style="left:38%; bottom:8%;"><use href="#treeIcon"></use></svg>
+<svg class="deco" width="24" height="24" style="left:61%; bottom:10%;"><use href="#treeIcon"></use></svg>
+<svg class="deco" width="30" height="30" style="left:75%; bottom:9%;"><use href="#craneIcon"></use></svg>
+<svg class="deco" width="22" height="22" style="left:88%; bottom:10%;"><use href="#treeIcon"></use></svg>
+<svg class="deco" width="16" height="16" style="left:95%; bottom:9%;"><use href="#treeIcon"></use></svg>
 
 <div class="panel titlebar">
   <div class="logo-lockup">
@@ -10377,6 +10424,26 @@ function addRow(data) {
   return true;
 }
 
+function celebrate(invoiceNo) {
+  // 全螢幕金色閃一下
+  const flash = document.createElement('div');
+  flash.className = 'flash';
+  document.body.appendChild(flash);
+  flash.addEventListener('animationend', () => flash.remove());
+
+  // 中間跳出「GET!」徽章，動畫跑完自己消失
+  const popup = document.createElement('div');
+  popup.className = 'getPopup';
+  popup.innerHTML = `${coinIcon} GET! ${invoiceNo}`;
+  document.body.appendChild(popup);
+  popup.addEventListener('animationend', () => popup.remove());
+
+  // 金額計分條跳一下，重新觸發動畫要先清掉再加回去，不然瀏覽器不會重播同一個 animation
+  totalEl.style.animation = 'none';
+  totalEl.offsetHeight;
+  totalEl.style.animation = 'scorePulse .4s ease-out';
+}
+
 function updateTotal() {
   let sum = 0;
   tbody.querySelectorAll('td.amount').forEach(td => sum += Number(td.textContent) || 0);
@@ -10450,7 +10517,12 @@ function tick() {
         const data = parseInvoiceQR(code.data);
         if (data) {
           const added = addRow(data);
-          statusEl.innerHTML = added ? `${coinIcon} 收集到一張發票：${data.invoiceNo}！` : `這張已經收集過了：${data.invoiceNo}`;
+          if (added) {
+            statusEl.innerHTML = `${coinIcon} 收集到一張發票：${data.invoiceNo}！`;
+            celebrate(data.invoiceNo);
+          } else {
+            statusEl.textContent = `這張已經收集過了：${data.invoiceNo}`;
+          }
         } else {
           statusEl.textContent = '有掃到 QR code，但格式不符合發票規則（見下方原始內容）';
         }
