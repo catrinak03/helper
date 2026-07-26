@@ -10421,6 +10421,24 @@ function addRow(data) {
   tbody.appendChild(tr);
   exportBtn.disabled = false;
   updateTotal();
+
+  // 新增：把這筆發票資料傳給後端伺服器存進資料庫
+  fetch('http://localhost:3000/api/invoices', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      invoiceNo: data.invoiceNo,
+      amount: data.total,
+      category: '',
+      remarks: ''
+    })
+  })
+    .then(res => res.json())
+    .then(result => {
+      if (!result.success) console.error('存檔失敗:', result.error);
+    })
+    .catch(err => console.error('無法連線到伺服器:', err));
+
   return true;
 }
 
